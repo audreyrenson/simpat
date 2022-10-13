@@ -4,7 +4,7 @@
 \alias{glue_formula}
 \title{Create formulas using \code{glue} syntax}
 \usage{
-glue_formula(string, ...)
+glue_formula(string, glue_vars)
 }
 \arguments{
 \item{string}{chr. Expressions enclosed in braces will be evaluated as R code (see \code{?glue}).}

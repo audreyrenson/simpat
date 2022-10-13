@@ -7,7 +7,7 @@
 \usage{
 create_spec(family, formula)
 
-\method{simulate}{spec}(object, data, params = NULL, nsim = 1, seed = NULL, ...)
+\method{simulate}{spec}(object, data, glue_vars = list())
 }
 \arguments{
 \item{family}{a \code{stats::family} object specifying the distribution and link function to simulate from}

@@ -3,8 +3,8 @@
 #' @param n_obs int. Number of independent observations
 #' @param n_covs_binary int. Number of binary covariates observed at each period
 #' @param n_covs_continuous int. Number of continuous covariates observed at each period
-#' @param a_formula glue-style formula specifying how the treatments depend on history of covariates and treatments
-#' @param y_formula glue-style formula specifying how the outcomes depend on history of covariates and treatments
+#' @param a_spec `spec` object (as returned by `create_spec()`) specifying how the treatments are generated as a function of measured history
+#' @param y_spec `spec` object specifying how the outcomes are generated as a function of measured history
 #' @param tau int. Number of periods, minus 1. I.e. there are Tt + 1 periods.
 #' @param potential_outcomes logical. Should outcomes and covariates be generated with exposure set to 0 at all times?
 #'
@@ -15,27 +15,33 @@
 generate_data <- function(n_obs=100,
                           n_covs_binary=2,
                           n_covs_continuous=2,
-                          a_specification,
-                          y_specification,
+                          a_spec,
+                          y_spec,
                           tau=2,
                           potential_outcomes=FALSE){
 
   df = data.frame(uid = seq_len(n_obs),
                   u   = runif(n_obs))
 
+  n_covs = n_covs_binary + n_covs_continuous
+  w_formula = paste0('~', paste(sapply(1:n_covs, function(j) paste0('w', j, '{t-1}')), collapse='+'))
+  w_bin_spec = create_spec(binomial(), w_formula)
+  w_con_spec = create_spec(gaussian(), w_formula)
+  w_bin_indices = 1:n_covs_binary
+  w_con_indices = n_covs_binary + (1:n_covs_continuous)
 
   for(t in 0:tau) {
 
     #Obey the temporal ordering {w_t, a_t, y_t}
-    for(j in 1:n_covs_binary) {
-      df[[glue::glue('w{jt}')]] = rbinom_logit() #what does wjt depend on and how to generate that model? possibly let it depend on everything except u and control the mean and variance?
+    for(j in w_bin_indices) {
+      df[[glue::glue('w{j}{t}')]] = simulate.spec(object = w_bin_spec, data = df, glue_vars = list(t=t))
     }
-    for(j in 1:n_covs_continuous) {
-      df[[glue::glue('w{jt}')]] = rnorm_identity() #ditto above?
+    for(j in w_con_indices) {
+      df[[glue::glue('w{j}{t}')]]  = simulate.spec(w_con_spec, data = df, glue_vars = list(t=t))
     }
 
-    df[[glue::glue('a{t}')]] = sim_spec(a_specification, n_obs)
-    df[[glue::glue('y{t}')]] = sim_spec(y_specification, n_obs)
+    # df[[glue::glue('a{t}')]] = simulate(a_specification, df)
+    # df[[glue::glue('y{t}')]] = sim_spec(y_specification, n_obs)
 
   }
 
@@ -51,21 +57,5 @@ pivot_longer_gendata = function(df_wide) {
   #   tidyr::separate(name, into=c('var','t'), sep=1) %>%
   #   tidyr::pivot_wider(names_from = var, values_from = value) %>%
   #   dplyr::mutate(t=as.numeric(t))
-}
-
-# convert these to generic spec objects (i.e. main terms linear model)
-rbinom_logit <- function(X, Beta, N, n=1) rbinom(n=N, p=plogis(as.matrix(X) %*% Beta), size=n)
-norm_identity <- function(X, Beta, N, sd=1) rnorm(n=N, mean =as.matrix(X) %*% Beta, sd=sd)
-
-
-#specifications
-a_specification = create_spec(binomial('logit'), '~w{1t}+w{2t}+log(w{1t})+I(w{2t}^2)')
-
-create_spec = function(family, formula) {
-  #return spec object that tells how to simulate data
-}
-
-sim_spec = function(spec, data, nobs) { #consider renaming 'spec' b/c exists in readr package
-  #code to generate data from a spec object
 }
 
