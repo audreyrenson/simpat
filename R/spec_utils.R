@@ -28,19 +28,20 @@ create_spec = function(family, formula) {
 #' @rdname spec
 simulate.spec <- function(object, data, glue_vars=list()) {
 
-  formula = glue_formula(object$formula, glue_vars)
-  X = model.matrix(formula, data)
+  rhs_formula = glue_formula(object$formula, glue_vars)
+  X = model.matrix(rhs_formula, data)
   X_pars = rnorm(ncol(X), mean=1) #goals: package this as a separate function, normalize parameters to control variance
 
-  data$pseudo_y = object$family$linkinv(c(X %*% X_pars))
-  pseudo_y_formula = glue_formula(paste0('pseudo_y', object$formula), glue_vars)
-  pseudo_glm = withCallingHandlers({
-    glm(pseudo_y_formula, family=object$family, data=data)
+  data$yhat = object$family$linkinv(c(X %*% X_pars))
+  full_formula = glue_formula(paste0('yhat', object$formula), glue_vars)
+  sim_glm = withCallingHandlers({
+    glm(full_formula, family=object$family, data=data)
   }, warning = function(w) {
-    #the non-integer successes warning happens anytime you run a binomial or other discrete glm with continuous y, and isn't actually a problem
+    # non-integer warning will always happen for discrete distribution because yhat is continuous.
+    # This is okay because the glm object will still have the right coefficients.
     if (startsWith(conditionMessage(w), "non-integer"))
       invokeRestart("muffleWarning")
   })
-  simulate(pseudo_glm, nsim=1)[,1]
+  simulate(sim_glm, nsim=1)[,1]
 }
 
